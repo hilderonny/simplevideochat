@@ -1,54 +1,72 @@
+var express = require('express');
+var fs = require('fs');
+var http = require('http');
+var https = require('https');
+var socketio = require('socket.io');
 
-var init = () => {
-    var fs = require('fs');
-    var express = require('express');
-    var app = express();
-    app.use(require('compression')()); // Ausgabekompression
-    app.use(require('body-parser').json()); // JSON Request-Body-Parser -> req.body
-    app.use(express.static(__dirname + '/public')); // Statische Ressourcen im public-Verzeichnis, lädt bei root-Aufruf automatisch index.html
+// Anwendung initialisieren und Handler-Reihenfolge festlegen
+var app = express();
+app.use(express.static(__dirname + '/public')); // Statische Ressourcen im public-Verzeichnis, lädt bei root-Aufruf automatisch index.html
+app.use('/node_modules', express.static(__dirname + '/node_modules')); // Node Module als statische Verweise bereit stellen, damit angular geladen werden kann
 
-    // SSL für HTTPS-Server vorbereiten, siehe https://franciskim.co/2015/07/30/how-to-use-ssl-https-for-express-4-x-node-js/
-    var credentials = { 
-        key: fs.existsSync('./priv.key') ? fs.readFileSync('./priv.key', 'utf8') : null, 
-        cert: fs.existsSync('./pub.cert') ? fs.readFileSync('./pub.cert', 'utf8') : null
-    };
+// Webserver Express Instanz
+var server = https.createServer({ 
+    key: fs.readFileSync('./priv.key', 'utf8'), 
+    cert: fs.readFileSync('./pub.cert', 'utf8')
+}, app);
+// Socket.io Instanz
+var io = socketio(server);
 
-    var httpsPort = process.env.HTTPS_PORT || 443;
-    var httpPort = process.env.PORT || 80;
+// Liste verbundener Sockets
+var sockets = {};
 
-    var https = require('https');
-    var http = require('http');
-    var socketio = require('socket.io'); // Chat
-    var io, server;
-
-    // HTTPS
-    var httpsServer = https.createServer(credentials, app);
-    server = httpsServer.listen(httpsPort, function() {
-        console.log(`HTTPS laeuft an Port ${httpsPort}.`);
-    });
-    // HTTP
-    var handler = function(req, res) {
-        // When redirecting, the correct port must be used. But the original request can also have a port which must be stripped.
-        if (!req || !req.headers || !req.headers.host) return; // Attackers do not send correct header information
-        var indexOfColon = req.headers.host.lastIndexOf(':');
-        var hostWithoutPort = indexOfColon > 0 ? req.headers.host.substring(0, indexOfColon) : req.headers.host;
-        var newUrl = `https://${hostWithoutPort}:${httpsPort}${req.url}`;
-        res.writeHead(302, { 'Location': newUrl }); // http://stackoverflow.com/a/4062281
-        res.end();
-    };
-    var httpServer = http.createServer(handler);
-    httpServer.listen(httpPort, function() {
-        console.log(`HTTP laeuft an Port ${httpPort}.`);
-    });
-
-    // Websockets
-    io = socketio.listen(httpsServer,credentials); // Chat
-    io.on('connection', function(socket){
-        socket.on('message', function(msg){
-            socket.broadcast.emit('message', msg);
+io.on('connection', (socket) => {
+    sockets[socket.id] = socket;
+    socket.on('disconnect', () => {
+        delete sockets[socket.id];
+        console.log(`Socket ${socket.id} disconnected.`);
+        socket.broadcast.emit('Message', {
+            type: 'WebRTCclientDisconnected',
+            content: socket.id
         });
     });
+    socket.on('Message', (message) => {
+        message.from = socket.id;
+        if (message.type === 'WebRTCclientName') {
+            socket.name = message.content;
+        }
+        if (message.to) {
+            sockets[message.to].emit('Message', message);
+            console.log(`Sent message type "${message.type}" from ${message.from} to ${message.to}`);
+        } else {
+            socket.broadcast.emit('Message', message);
+            console.log(`Sent message type "${message.type}" from ${message.from} to all other`);
+        }
+    });
+    console.log(`Socket ${socket.id} connected.`);
+    socket.broadcast.emit('Message', {
+        type: 'WebRTCclientConnected',
+        content: socket.id
+    });
+    socket.emit('Message', {
+        type: 'WebRTCclientList',
+        content: Object.keys(sockets).filter((id) => id !== socket.id).map((id) => {
+            return { id: id, name: sockets[id].name }
+        })
+    });
+});
 
-};
-
-init();
+// Server starten
+server.listen(443, () => {
+    console.log(`HTTP laeuft an Port 443.`);
+});
+http.createServer((req, res) => {
+    // When redirecting, the correct port must be used. But the original request can also have a port which must be stripped.
+    var indexOfColon = req.headers.host.lastIndexOf(':');
+    var hostWithoutPort = indexOfColon > 0 ? req.headers.host.substring(0, indexOfColon) : req.headers.host;
+    var newUrl = `https://${hostWithoutPort}:443${req.url}`;
+    res.writeHead(302, { 'Location': newUrl }); // http://stackoverflow.com/a/4062281
+    res.end();
+}).listen(80, function() {
+    console.log(`HTTP laeuft an Port 80.`);
+});
