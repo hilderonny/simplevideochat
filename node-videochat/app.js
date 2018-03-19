@@ -1,54 +1,34 @@
+var fs = require('fs'); // For reading certificate files
+var express = require('express'); // Webserver
+var https = require('https'); // WebRTC needs SSL connections
+var socketio = require('socket.io'); // Broadcast handshake messages
+var jsonbodyparser = require('body-parser').json(); // Parse JSON request bodies to req.body
 
-var init = () => {
-    var fs = require('fs');
-    var express = require('express');
-    var app = express();
-    app.use(require('compression')()); // Ausgabekompression
-    app.use(require('body-parser').json()); // JSON Request-Body-Parser -> req.body
-    app.use(express.static(__dirname + '/public')); // Statische Ressourcen im public-Verzeichnis, lädt bei root-Aufruf automatisch index.html
+var httpsPort = 443; // Change to your needs
 
-    // SSL für HTTPS-Server vorbereiten, siehe https://franciskim.co/2015/07/30/how-to-use-ssl-https-for-express-4-x-node-js/
-    var credentials = { 
-        key: fs.existsSync('./priv.key') ? fs.readFileSync('./priv.key', 'utf8') : null, 
-        cert: fs.existsSync('./pub.cert') ? fs.readFileSync('./pub.cert', 'utf8') : null
-    };
+var app = express();
+app.use(jsonbodyparser);
+app.use(express.static(__dirname + '/public')); // Serve HTML files from ./public directory
 
-    var httpsPort = process.env.HTTPS_PORT || 443;
-    var httpPort = process.env.PORT || 80;
-
-    var https = require('https');
-    var http = require('http');
-    var socketio = require('socket.io'); // Chat
-    var io, server;
-
-    // HTTPS
-    var httpsServer = https.createServer(credentials, app);
-    server = httpsServer.listen(httpsPort, function() {
-        console.log(`HTTPS laeuft an Port ${httpsPort}.`);
-    });
-    // HTTP
-    var handler = function(req, res) {
-        // When redirecting, the correct port must be used. But the original request can also have a port which must be stripped.
-        if (!req || !req.headers || !req.headers.host) return; // Attackers do not send correct header information
-        var indexOfColon = req.headers.host.lastIndexOf(':');
-        var hostWithoutPort = indexOfColon > 0 ? req.headers.host.substring(0, indexOfColon) : req.headers.host;
-        var newUrl = `https://${hostWithoutPort}:${httpsPort}${req.url}`;
-        res.writeHead(302, { 'Location': newUrl }); // http://stackoverflow.com/a/4062281
-        res.end();
-    };
-    var httpServer = http.createServer(handler);
-    httpServer.listen(httpPort, function() {
-        console.log(`HTTP laeuft an Port ${httpPort}.`);
-    });
-
-    // Websockets
-    io = socketio.listen(httpsServer,credentials); // Chat
-    io.on('connection', function(socket){
-        socket.on('message', function(msg){
-            socket.broadcast.emit('message', msg);
-        });
-    });
-
+// Prepare SSL certificates for server. Will result in browser warning about untrusted certificates, but it is okay for local tests
+var credentials = { 
+    key: fs.readFileSync('./priv.key', 'utf8'), 
+    cert: fs.readFileSync('./pub.cert', 'utf8')
 };
 
-init();
+// Prepare HTTPS server
+var httpsServer = https.createServer(credentials, app);
+httpsServer.listen(httpsPort, () => { // Start HTTPS server
+    console.log(`HTTPS server is running at port ${httpsPort}.`);
+});
+
+// Prepare websockets and bind them to the HTTPS server
+var io = socketio.listen(httpsServer,credentials);
+// Handle incoming connections
+io.on('connection', (socket) => {
+    // Handle incoming messages with tag "message"
+    socket.on('message', (msg) => {
+        // Forward the message to all connected clients except the sender independent on content
+        socket.broadcast.emit('message', msg);
+    });
+});
