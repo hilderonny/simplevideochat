@@ -1,11 +1,7 @@
 {
   "name": "videochat",
-  "version": "1.0.0",
-  "description": "Node Express Anwendung, die Videochat zwischen verknüpften Browsern ermöglicht. Verwendet Websockets und WebRTC.",
+  "version": "2.0.0",
   "main": "app.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "author": "Ronny Hildebrandt",
   "license": "Unlicense",
   "repository": {

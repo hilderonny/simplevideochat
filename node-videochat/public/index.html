@@ -2,14 +2,14 @@
 <html ng-app="app">
     <head>
         <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <link rel="stylesheet" href="/node_modules/angular-material/angular-material.css">
+        <link rel="stylesheet" href="css/angular-material.min.css">
         <link rel="stylesheet" href="css/base.css">
         <script src="/socket.io/socket.io.js"></script>
-        <script src="/node_modules/angular/angular.js"></script>
-        <script src="/node_modules/angular-aria/angular-aria.js"></script>
-        <script src="/node_modules/angular-animate/angular-animate.js"></script>
-        <script src="/node_modules/angular-material/angular-material.js"></script>
-        <script src="/node_modules/angular-messages/angular-messages.js"></script>
+        <script src="js/angular.min.js"></script>
+        <script src="js/angular-aria.min.js"></script>
+        <script src="js/angular-animate.min.js"></script>
+        <script src="js/angular-material.min.js"></script>
+        <script src="js/angular-messages.min.js"></script>
         <script src="js/adapter.js"></script>
         <script src="js/webrtc.js"></script>
         <script src="js/AppSetup.js"></script>
@@ -37,8 +37,8 @@
                         </md-card-title-text>
                     </md-card-title>
                     <md-card-actions layout="row" layout-align="center center">
-                        <md-button class="md-raised md-primary" ng-if="!remoteClient.isInCall" ng-click="callRemoteClient(remoteClient)">Anrufen</md-button>
-                        <md-button class="md-raised md-warn" ng-if="remoteClient.isInCall" ng-click="endCall(remoteClient)">Auflegen</md-button>
+                        <md-button class="md-raised md-primary" ng-if="!remoteClient.isInCall" ng-click="callRemoteClient(remoteClient)">Call</md-button>
+                        <md-button class="md-raised md-warn" ng-if="remoteClient.isInCall" ng-click="endCall(remoteClient)">Hangup</md-button>
                     </md-card-actions>
                 </md-card>
 
@@ -50,4 +50,5 @@
         </md-content>
 
     </body>
+
 </html>

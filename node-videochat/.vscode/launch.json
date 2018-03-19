@@ -4,7 +4,7 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Server starten",
+            "name": "Debug",
             "program": "${workspaceRoot}\\app.js"
         }
     ]
