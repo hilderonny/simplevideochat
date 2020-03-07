@@ -28,7 +28,7 @@ var addStream = function(clientId, stream) {
     stream.videoTag = videoTag;
     videoTag.setAttribute('autoplay', 'autoplay');
     document.getElementById('remoteVideos').appendChild(videoTag);
-    videoTag.src = window.URL.createObjectURL(stream);
+    videoTag.srcObject = stream;
 };
 
 var removeClient = function(clientId) {
@@ -76,7 +76,7 @@ window.onload = function() {
     });
 
     rtc.on('localStream', function(localStream) {
-        document.getElementById('localVideo').src = window.URL.createObjectURL(localStream);
+        document.getElementById('localVideo').srcObject = localStream;
     });
 
     rtc.on('remoteStream', function(event) {
