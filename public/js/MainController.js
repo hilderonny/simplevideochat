@@ -25,12 +25,12 @@ app.controller('MainController', function($scope, $mdMedia) {
         client.name = changedClient.name;
         $scope.$apply();
     }).on('localStream', function(localStream) {
-        $scope.localVideoStreamUrl = window.URL.createObjectURL(localStream);
-        document.getElementById('localVideoTag').src = $scope.localVideoStreamUrl;
+        $scope.localVideoStream = localStream;
+        document.getElementById('localVideoTag').srcObject = $scope.localVideoStream;
     }).on('remoteStream', function(event) {
         var client = $scope.remoteClients[event.connection.remoteClientId];
         if (!client) return;
-        client.remoteVideo = window.URL.createObjectURL(event.stream);
+        client.remoteVideo = event.stream;
         $scope.$apply();
     }).on('clientThumbnail', function(changedClient) {
         var client = $scope.remoteClients[changedClient.id];

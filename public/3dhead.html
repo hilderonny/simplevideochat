@@ -39,9 +39,8 @@
                 
                 // Lokales Video initialisieren
                 navigator.mediaDevices.getUserMedia({ audio: false, video: true }).then(function(stream) {
-                    var url = window.URL.createObjectURL(stream);
-                    videoTag1.src = url;
-                    videoTag2.src = url;
+                    videoTag1.srcObject = stream;
+                    videoTag2.srcObject = stream;
                 });
 
                 // Babylon initialisieren

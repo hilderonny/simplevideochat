@@ -30,7 +30,7 @@
 
                 <md-card class="md-raised" ng-repeat="remoteClient in remoteClients" ng-class="{isInCall: remoteClient.isInCall}" aria-label="CLIENT">
                     <img data-ng-src="{{remoteClient.thumbnail}}" class="md-card-image" ng-if="!remoteClient.isInCall" />
-                    <video autoplay class="md-card-image" ng-if="remoteClient.isInCall" ng-src="{{remoteClient.remoteVideo | trustUrl}}"></video>
+                    <video autoplay class="md-card-image" ng-if="remoteClient.isInCall" ng-srcObject="{{remoteClient.remoteVideo | trustUrl}}"></video>
                     <md-card-title>
                         <md-card-title-text>
                             <span class="md-headline" ng-bind="remoteClient.name"></span>

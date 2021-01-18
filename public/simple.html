@@ -34,7 +34,7 @@
                     delete _connections[this.remoteClientId];
                 };
                 connection.onaddstream = function(event) {
-                    this.videoTag.src = window.URL.createObjectURL(event.stream);
+                    this.videoTag.srcObject = event.stream;
                 };
                 connection.onremovestream = connection.closeConnection;
                 connection.addStream(_localVideoStream);
@@ -189,7 +189,7 @@
 
                 // Lokales Video initialisieren
                 navigator.mediaDevices.getUserMedia({ audio: false, video: true }).then(function(stream) {
-                    document.getElementById('localVideo').src = window.URL.createObjectURL(stream);
+                    document.getElementById('localVideo').srcObject = stream;
                     _localVideoStream = stream;
                 });
 
