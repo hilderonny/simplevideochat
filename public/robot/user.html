@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="../js/webrtc.js"></script>
+        <script type="module">
+            let videoTag;
+            let robotClientId;
+            const robotClientName = 'Robot';
+
+            const rtc = new WebRTC({ audio: true, video: true}, false); // do not auto accept incoming calls
+            rtc.setLocalClientName('User');
+
+            rtc.on('clientList', clientList => {
+                for (let client of Object.values(clientList)) {
+                    if (client.name === robotClientName) {
+                        robotClientId = client.id;
+                        console.log('Robot already available: ' + robotClientId);
+                    }
+                }
+            });
+
+            rtc.on('localStream', () => {
+                if (robotClientId) {
+                    rtc.call(robotClientId);
+                    console.log('Connection to robot: ' + robotClientId);
+                }
+            });
+
+            rtc.on('clientChanged', client => {
+                console.log(client);
+                if (client.name === robotClientName) {
+                    robotClientId = client.id;
+                    rtc.call(robotClientId);
+                    console.log('Connection to robot: ' + robotClientId);
+                }
+            });
+
+            rtc.on('clientDisconnected', client => {
+                if (client.id === robotClientId && videoTag) {
+                    videoTag.pause();
+                    videoTag.src = '';
+                    videoTag.parentNode.removeChild(videoTag);
+                    robotClientId = undefined;
+                    videoTag = undefined;
+                    document.querySelector('#status').innerHTML = 'Waiting for robot ...';
+                    console.log('Robot disconnected: ' + client.id);
+                }
+            });
+
+            rtc.on('remoteStream', evt => {
+                videoTag = document.createElement('video');
+                videoTag.srcObject = evt.stream;
+                videoTag.autoplay = 'autoplay';
+                document.body.appendChild(videoTag);
+                document.querySelector('#status').innerHTML = 'Robot connected.';
+                console.log('Remote stream received.');
+            });
+
+        </script>
+    </head>
+    <body>
+        <div id="status">Waiting for robot ...</div>
+    </body>
+</html>
