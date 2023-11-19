@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="js/adapter.js"></script>
+        <script src="js/webrtc.js"></script>
+        <script src="js/clientapp.js"></script>
+    </head>
+    <body>
+        <h4>Local name</h4>
+        <input id="localName" onkeyup="updateLocalName(this);" />
+        <h4>Client list</h4>
+        <div id="clientList"></div>
+        <video id="localVideo" autoplay></video>
+        <div id="remoteVideos"></div>
+    </body>
+</html>

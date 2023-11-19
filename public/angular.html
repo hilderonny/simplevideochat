@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html ng-app="app">
+    <head>
+        <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <link rel="stylesheet" href="css/angular-material.min.css">
+        <link rel="stylesheet" href="css/base.css">
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="js/angular.min.js"></script>
+        <script src="js/angular-aria.min.js"></script>
+        <script src="js/angular-animate.min.js"></script>
+        <script src="js/angular-material.min.js"></script>
+        <script src="js/angular-messages.min.js"></script>
+        <script src="js/adapter.js"></script>
+        <script src="js/webrtc.js"></script>
+        <script src="js/AppSetup.js"></script>
+        <script src="js/MainController.js"></script>
+    </head>
+	<body ng-controller="MainController" ng-cloak layout="column">
+
+
+        <md-toolbar layout="row" class="md-toolbar-tools">
+            <span flex></span>
+            <input ng-model="localClientName" ng-change="updateLocalName()" placeholder="Name">
+            <video id="localVideoTag" autoplay></video>
+        </md-toolbar>
+
+        <md-content flex layout="row">
+
+            <div>
+
+                <md-card class="md-raised" ng-repeat="remoteClient in remoteClients" ng-class="{isInCall: remoteClient.isInCall}" aria-label="CLIENT">
+                    <img data-ng-src="{{remoteClient.thumbnail}}" class="md-card-image" ng-if="!remoteClient.isInCall" />
+                    <video autoplay class="md-card-image" ng-if="remoteClient.isInCall" ng-srcObject="{{remoteClient.remoteVideo | trustUrl}}"></video>
+                    <md-card-title>
+                        <md-card-title-text>
+                            <span class="md-headline" ng-bind="remoteClient.name"></span>
+                        </md-card-title-text>
+                    </md-card-title>
+                    <md-card-actions layout="row" layout-align="center center">
+                        <md-button class="md-raised md-primary" ng-if="!remoteClient.isInCall" ng-click="callRemoteClient(remoteClient)">Call</md-button>
+                        <md-button class="md-raised md-warn" ng-if="remoteClient.isInCall" ng-click="endCall(remoteClient)">Hangup</md-button>
+                    </md-card-actions>
+                </md-card>
+
+            </div>
+
+        </md-list>
+
+
+        </md-content>
+
+    </body>
+
+</html>

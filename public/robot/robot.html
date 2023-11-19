@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="../js/webrtc.js"></script>
+        <script type="module">
+
+            const allowedClientName = 'User'; // Only clients with this name are allowed to connect
+            let allowedClientId;
+            let videoTag;
+
+            const rtc = new WebRTC({ audio: true, video: true}, false); // do not auto accept incoming calls
+            rtc.setLocalClientName('Robot');
+
+            rtc.on('clientList', clientList => {
+                for (let client of Object.values(clientList)) {
+                    if (client.name === allowedClientName) {
+                        allowedClientId = client.id;
+                        console.log('Client already available: ' + allowedClientId);
+                    }
+                }
+            });
+
+            rtc.on('clientConnected', client => {
+                if (client.name === allowedClientName && !allowedClientId) {
+                    allowedClientId = client.id;
+                    console.log('Client connected: ' + allowedClientId);
+                }
+            });
+
+            rtc.on('clientDisconnected', client => {
+                if (client.id === allowedClientId && videoTag) {
+                    videoTag.pause();
+                    videoTag.src = '';
+                    videoTag.parentNode.removeChild(videoTag);
+                    allowedClientId = undefined;
+                    videoTag = undefined;
+                    document.querySelector('#status').innerHTML = 'Waiting for connection from client "User" ...';
+                    console.log('Client disconnected: ' + client.id);
+                }
+            });
+
+            rtc.on('incomingCall', incomingConnection => {
+                if (incomingConnection.remoteClientId === allowedClientId) {
+                    console.log('Incoming call from: ' + incomingConnection.remoteClientId);
+                    rtc.acceptIncomingCall(incomingConnection.id);
+                }
+            });
+
+            rtc.on('remoteStream', evt => {
+                videoTag = document.createElement('video');
+                videoTag.srcObject = evt.stream;
+                videoTag.autoplay = 'autoplay';
+                //videoTag.style.display = 'none';
+                document.body.appendChild(videoTag);
+                document.querySelector('#status').innerHTML = 'Client connected.';
+                console.log('Remote stream received.');
+            });
+
+        </script>
+    </head>
+    <body>
+        <div id="status">Waiting for connection from client "User" ...</div>
+    </body>
+</html>

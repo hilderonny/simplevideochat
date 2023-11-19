@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-min.js"></script>
+        <script src="js/adapter.js"></script>
+        <script>
+            var _socket, viewModel, _clients = {}, peerConnection, _connections = {}, _localVideoStream;
+
+            function createConnection(remoteClientId) {
+                if (_connections[remoteClientId]) {
+                    _connections[remoteClientId].closeConnection();
+                }
+                var connection = new RTCPeerConnection(null);
+                connection.remoteClientId = remoteClientId;
+                connection.videoTag = document.createElement('video');
+                connection.videoTag.setAttribute('autoplay', 'autoplay');
+                _connections[remoteClientId] = connection;
+                connection.onicecandidate = function(event) {
+                    if (event.candidate) {
+                        _socket.emit('Message', {
+                            to: this.remoteClientId,
+                            type: 'iceCandidate',
+                            content: event.candidate
+                        });
+                    }
+                };
+                connection.closeConnection = function() {
+                    if (this.videoTag.parentNode) {
+                        this.videoTag.parentNode.removeChild(this.videoTag);
+                    }
+                    this.close();
+                    delete _connections[this.remoteClientId];
+                };
+                connection.onaddstream = function(event) {
+                    this.videoTag.srcObject = event.stream;
+                };
+                connection.onremovestream = connection.closeConnection;
+                connection.addStream(_localVideoStream);
+                return connection;
+            }
+
+            function openConnection(targetClientId) {
+                var connection = createConnection(targetClientId);
+                connection.createOffer().then(function(sessionDescription) {
+                    connection.setLocalDescription(sessionDescription);
+                    _socket.emit('Message', {
+                        to: connection.remoteClientId,
+                        type: 'call',
+                        content: sessionDescription
+                    });
+                });
+                return connection;
+            }
+
+            function handleIncomingConnection(callerClientId, callerSessionDescription) {
+                var connection = createConnection(callerClientId);
+                connection.setRemoteDescription(new RTCSessionDescription(callerSessionDescription));
+                connection.createAnswer().then(function(sessionDescription) {
+                    connection.setLocalDescription(sessionDescription);
+                    _socket.emit('Message', {
+                        to: connection.remoteClientId,
+                        type: 'answer',
+                        content: sessionDescription
+                    });
+                });
+                return connection;
+            }
+
+            // Sendet den aktuellen Namen von sich selbst an den Server
+            function tellLocalClientName() {
+                _socket.emit('Message', {
+                    type: 'clientName',
+                    content: viewModel.localClientName()
+                });
+            }
+
+            // ViewModel für die einzelnen Clients
+            function ClientViewModel(client) {
+                var self = this;
+                self.client = client;
+                self.id = client.id;
+                self.name = ko.observable(client.name);
+
+                // Anruf an Gegenstelle machen
+                self.call = function() {
+                    var videoTag = openConnection(self.id).videoTag;
+                    document.body.appendChild(videoTag);
+                };
+            }
+
+            // GesamtViewModel der Anwendung
+            function ViewModel() {
+
+                var self = this;
+
+                // Anzahl verbundener Clients
+                self.clientCount = ko.observable(0);
+
+                // Eigener Name, wird aus lokalem Speicher gelesen
+                self.localClientName = ko.observable(localStorage.getItem('LocalClientName'));
+                self.localClientName.subscribe(function(newLocalClientName) {
+                    // Bei Änderung eigenen Namen lokal speichern und an Server senden
+                    localStorage.setItem('LocalClientName', newLocalClientName);
+                    tellLocalClientName();
+                });
+
+                // Liste aller verbundenen Clients für Auflistung
+                self.clients = ko.observableArray([]);
+
+                // Neuen Client zur Liste hinzufügen
+                self.addClient = function(client) {
+                    var clientViewModel = new ClientViewModel(client);
+                    self.clients.push(clientViewModel);
+                    self.clientCount(self.clients().length);
+                };
+
+                // Client aus Liste löschen
+                self.removeClient = function(clientId) {
+                    self.clients.remove((function(client) {
+                        return client.id === clientId;
+                    }));
+                    self.clientCount(self.clients().length);
+                };
+            }
+
+            window.onload = function() {
+
+                // Databinding mit Knockout initialisieren
+                viewModel = new ViewModel();
+                ko.applyBindings(viewModel);
+
+                // WebSocket-Verbindung mit Server herstellen
+                _socket = io();
+
+                _socket.on('Message', function(message) {
+                    switch(message.type) {
+                        case 'clientConnected':
+                            viewModel.addClient({ id : message.content });
+                            break;
+                        case 'clientDisconnected':
+                        var remoteClientId = message.content;
+                            viewModel.removeClient(remoteClientId);
+                            if (_connections[remoteClientId]) {
+                                _connections[remoteClientId].closeConnection();
+                            }
+                            break;
+                        case 'clientList':
+                            viewModel.clients.removeAll();
+                            message.content.forEach(function(client) {
+                                viewModel.addClient(client);
+                            });
+                            viewModel.clientCount(viewModel.clients().length);
+                            break;
+                        case 'clientName':
+                            var clients = viewModel.clients();
+                            for (var i in clients) {
+                                var client = clients[i];
+                                if (client.id === message.from) {
+                                    client.name(message.content);
+                                    break;
+                                }
+                            }
+                            break;
+                        case 'call':
+                            var callerSessionDescription = message.content;
+                            var videoTag = handleIncomingConnection(message.from, callerSessionDescription).videoTag;
+                            document.body.appendChild(videoTag);
+                            break;
+                        case 'answer':
+                            var connection = _connections[message.from];
+                            if (!connection) {
+                                break;
+                            }
+                            var targetSessionDescription = message.content;
+                            connection.setRemoteDescription(new RTCSessionDescription(targetSessionDescription));
+                            break;
+                        case 'iceCandidate':
+                            var connection = _connections[message.from];
+                            if (!connection) {
+                                break;
+                            }
+                            connection.addIceCandidate(new RTCIceCandidate(message.content));
+                            break;
+                    }
+                    console.log(message);
+                });
+
+                // Lokales Video initialisieren
+                navigator.mediaDevices.getUserMedia({ audio: false, video: true }).then(function(stream) {
+                    document.getElementById('localVideo').srcObject = stream;
+                    _localVideoStream = stream;
+                });
+
+                // Beim Start erst mal eigenen Namen rumposaunen
+                tellLocalClientName();
+            };
+        </script>
+    </head>
+    <body>
+        <h4>Eigener Name</h4>
+        <input data-bind="textInput: localClientName" />
+        <h4>Anzahl verbundener Teilnehmer</h4>
+        <div data-bind="text: clientCount"></div>
+        <h4>Teilnehmerliste</h4>
+        <div data-bind="foreach: clients">
+            <button data-bind="text: name, click: call"></button>
+        </div>
+        <video id="localVideo" autoplay></video>
+    </body>
+</html>

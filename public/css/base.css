@@ -1,0 +1,42 @@
+md-content {
+    align-items: center;
+}
+
+md-content > div {
+    text-align: center;
+    max-height: 100%;
+    width: 100%;
+}
+
+md-content > div > md-card {
+    display: inline-block;
+}
+
+md-content > div > md-card.isInCall {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: auto;
+    z-index: 100;
+}
+
+md-content > div > md-card.isInCall > video {
+    max-height: 100%;
+    max-width: 100%;
+}
+
+md-toolbar input {
+    color: white;
+    text-align: right;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0 8px;
+}
+
+md-toolbar video {
+    height: 75%;
+    margin-left: 8px;
+}

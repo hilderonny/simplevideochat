@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="js/babylon.js"></script>
+        <script src="js/hand.js"></script>
+        <script src="js/tracking-min.js"></script>
+        <script src="js/face-min.js"></script>
+        <script>
+
+            var mat;
+
+            var createScene = function (engine, canvas) {
+
+                var scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color3(0, 1, 0);
+
+                var camera = new BABYLON.ArcRotateCamera("Camera", -1.57, 0.8, 10, new BABYLON.Vector3.Zero(), scene);
+                camera.attachControl(canvas, false);
+
+                var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+                light.intensity = .5;
+
+                mat = new BABYLON.StandardMaterial("mat", scene);
+                var videoTexture = new BABYLON.VideoTexture("video", document.getElementById('videoTag2'), scene, false, false, 2);
+                mat.diffuseTexture = videoTexture;
+                mat.emissiveTexture = videoTexture;
+
+                var ground = BABYLON.Mesh.CreateGround("ground1", 6, 6, 2, scene);
+                ground.material = mat;
+
+                return scene;
+
+            }; 
+
+            window.onload = function() {
+
+                var videoTag1 = document.getElementById('videoTag1');
+                var videoTag2 = document.getElementById('videoTag2');
+                
+                // Lokales Video initialisieren
+                navigator.mediaDevices.getUserMedia({ audio: false, video: true }).then(function(stream) {
+                    videoTag1.srcObject = stream;
+                    videoTag2.srcObject = stream;
+                });
+
+                // Babylon initialisieren
+                var canvas = document.getElementById("renderCanvas");
+                var engine = new BABYLON.Engine(canvas, true);
+                var scene = createScene(engine, canvas);
+                engine.runRenderLoop(function () {
+                    scene.render();
+                });
+
+                // Face-Tracker initialisieren
+                var tracker = new tracking.ObjectTracker(['face']);
+                tracker.setInitialScale(4);
+                tracker.setStepSize(2);
+                tracker.setEdgesDensity(0.1);
+                tracker.on('track', function(event) {
+                    if (event.data.length < 1) return;
+                    var firstFace = event.data[0];
+                    var factor = videoTag1.videoWidth / 320;
+                    var videoSize = { width:videoTag1.videoWidth, height:videoTag1.videoHeight };
+                    mat.diffuseTexture.uOffset = firstFace.x / 320;
+                    mat.diffuseTexture.vOffset = firstFace.y / 240;
+                    mat.diffuseTexture.uScale = firstFace.width / 320;
+                    mat.diffuseTexture.vScale = firstFace.height / 240;
+                });
+                tracking.track('#videoTag1', tracker, { camera: true });
+
+            };
+        </script>
+    </head>
+    <body>
+        <p>Diese Demo funktioniert mit einer Webcam und zentriert das erste gefundene Gesicht auf der 3D-Fläche</p>
+        <video id="videoTag1" width="320px" height="240px" style="position:fixed;top:-100%;left:-100%;" autoplay></video>
+        <video id="videoTag2" style="display:none;" autoplay></video>
+        <canvas id="renderCanvas" width="320px" height="240px"></canvas>
+    </body>
+</html>
